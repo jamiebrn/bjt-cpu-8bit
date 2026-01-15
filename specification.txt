@@ -1,0 +1,17 @@
+--- 8 bit discrete BJT processor ---
+
+Harvard architecture
+8 bit word size
+16 bit program address space (EEPROM)
+16 bit working memory (SRAM):
+ - 8 bit address width
+ - 256 banks (switchable via bank register)
+ - Bank 256 reserved for call stack
+
+CPU main data path goes only through the ALU.
+Registers are not directly connected - register transfers are facilitated by ALU operations, e.g. add 0.
+
+- ALU -
+ - Addition
+ - Subtraction
+ - Bitwise NAND
