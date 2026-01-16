@@ -8,10 +8,70 @@ Harvard architecture
  - 256 banks (switchable via bank register)
  - Bank 256 reserved for call stack
 
-CPU main data path goes only through the ALU.
-Registers are not directly connected - register transfers are facilitated by ALU operations, e.g. add 0.
+Registers:
+ - 16 bit PC (jk counter with overwrite)
+ - 8 bit general purpose/accessible A, B, C
+ - 8 bit I-OP
+ - 8 bit I-VAL
+ - 8 bit SP
+ - 8 bit BP
+ - 8 bit BANK
+ - 8 bit ADDR
+ - 4 bit FLAGS
 
-- ALU -
+CPU main data path goes only through the ALU.
+Registers are not directly connected - register transfers are facilitated by ALU operations, e.g. iadd ra rb 0, which transfers rb to ra.
+
+ALU:
  - Addition
  - Subtraction
  - Bitwise NAND
+ - Passthrough (No Op)
+
+ISA:
+    -- 1 byte instructions --
+    stop                            (0x00)
+
+    push    ra                      (0xD0)
+    ...
+
+    pop     ra                      (0xE0)
+    ...
+
+    ret                             (0xF0)
+
+    -- 2 byte instructions --
+    add     ra      rX      rY      (0x20 XY)
+    ...
+
+    addc    ra      rX      rY      (0x30 XY)
+    ...
+
+    iadd    ra      rX      Y       (0x40 XY)
+    ...
+
+    sub     ra      rX      rY      (0x50 XY)
+    ...
+
+    subc    ra      rX      rY      (0x60 XY)
+    ...
+
+    isub    ra      rX      Y       (0x70 XY)
+    ...
+
+    imm     ra      XX              (0x80 XX)
+    ...
+
+    nand    ra      rX      rY      (0x90 XY)
+    ...
+    
+    cmp     rX      rY              (0xA0 XY)
+
+    -- 3 byte instructions --
+    jmp     XXXX                    (0x10 XX XX)
+    jmpz    XXXX                    (0x11 XX XX)
+    jmpn    XXXX                    (0x12 XX XX)
+    jmpc    XXXX                    (0x13 XX XX)
+    jmpo    XXXX                    (0x14 XX XX)
+
+    call    XXXX                    (0xB0 XX XX)
