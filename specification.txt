@@ -11,8 +11,7 @@ Harvard architecture
 Registers:
  - 16 bit PC (jk counter with overwrite)
  - 8 bit general purpose/accessible A, B, C
- - 8 bit I-OP
- - 8 bit I-VAL
+ - 8 bit IR0, IR1, IR2
  - 8 bit SP
  - 8 bit BP
  - 8 bit BANK
@@ -32,46 +31,46 @@ ISA:
     -- 1 byte instructions --
     stop                            (0x00)
 
-    push    ra                      (0xD0)
+    push    ra                      (0x10)
     ...
 
-    pop     ra                      (0xE0)
+    pop     ra                      (0x20)
     ...
 
-    ret                             (0xF0)
+    ret                             (0x30)
 
     -- 2 byte instructions --
-    add     ra      rX      rY      (0x20 XY)
+    add     ra      rX      rY      (0x40 XY)
     ...
 
-    addc    ra      rX      rY      (0x30 XY)
+    addc    ra      rX      rY      (0x50 XY)
     ...
 
-    iadd    ra      rX      Y       (0x40 XY)
+    iadd    ra      rX      Y       (0x60 XY)
     ...
 
-    sub     ra      rX      rY      (0x50 XY)
+    sub     ra      rX      rY      (0x70 XY)
     ...
 
-    subc    ra      rX      rY      (0x60 XY)
+    subc    ra      rX      rY      (0x80 XY)
     ...
 
-    isub    ra      rX      Y       (0x70 XY)
+    isub    ra      rX      Y       (0x90 XY)
     ...
 
-    imm     ra      XX              (0x80 XX)
+    imm     ra      XX              (0xA0 XX)
     ...
 
-    nand    ra      rX      rY      (0x90 XY)
+    nand    ra      rX      rY      (0xB0 XY)
     ...
     
-    cmp     rX      rY              (0xA0 XY)
+    cmp     rX      rY              (0xC0 XY)
 
     -- 3 byte instructions --
-    jmp     XXXX                    (0x10 XX XX)
-    jmpz    XXXX                    (0x11 XX XX)
-    jmpn    XXXX                    (0x12 XX XX)
-    jmpc    XXXX                    (0x13 XX XX)
-    jmpo    XXXX                    (0x14 XX XX)
+    jmp     XXXX                    (0xE0 XX XX)
+    jmpz    XXXX                    (0xE1 XX XX)
+    jmpn    XXXX                    (0xE2 XX XX)
+    jmpc    XXXX                    (0xE3 XX XX)
+    jmpo    XXXX                    (0xE4 XX XX)
 
-    call    XXXX                    (0xB0 XX XX)
+    call    XXXX                    (0xF0 XX XX)
