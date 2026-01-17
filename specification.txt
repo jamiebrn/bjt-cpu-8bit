@@ -70,7 +70,7 @@ ISA:
     jmp     XXXX                    (0xE0 XX XX)
     jmpz    XXXX                    (0xE1 XX XX)
     jmpn    XXXX                    (0xE2 XX XX)
-    jmpc    XXXX                    (0xE3 XX XX)
-    jmpo    XXXX                    (0xE4 XX XX)
+    jmpc    XXXX                    (0xE4 XX XX)
+    jmpo    XXXX                    (0xE8 XX XX)
 
     call    XXXX                    (0xF0 XX XX)
