@@ -25,7 +25,7 @@ ALU:
  - Addition
  - Subtraction
  - Bitwise NAND
- - Passthrough (No Op)
+ - Passthrough (No Op - necessary for immediate mode as a side effect of the ALU being the only datapath between registers)
 
 ISA:
     -- 1 byte instructions --
