@@ -31,13 +31,19 @@ ISA:
     -- 1 byte instructions --
     stop                            (0x00)
 
+    ret                             (0x01)
+
     push    ra                      (0x10)
     ...
 
     pop     ra                      (0x20)
     ...
 
-    ret                             (0x30)
+    sto     ra                      (0x30)
+    ...
+
+    lda     ra                      (0xF0)
+    ...
 
     -- 2 byte instructions --
     add     ra      rX      rY      (0x40 XY)
@@ -66,6 +72,9 @@ ISA:
     
     cmp     rX      rY              (0xC0 XY)
 
+    stlr    rX      XX              (0xD0 XX)
+    ...
+
     -- 3 byte instructions --
     jmp     XXXX                    (0xE0 XX XX)
     jmpz    XXXX                    (0xE1 XX XX)
@@ -73,4 +82,4 @@ ISA:
     jmpc    XXXX                    (0xE4 XX XX)
     jmpo    XXXX                    (0xE8 XX XX)
 
-    call    XXXX                    (0xF0 XX XX)
+    call    XXXX                    (0xEA XX XX)
