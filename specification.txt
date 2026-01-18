@@ -10,12 +10,12 @@ Harvard architecture
 
 Registers:
  - 16 bit PC (jk counter with overwrite)
- - 8 bit general purpose/accessible A, B, C
+ - 8 bit general purpose/accessible A, B, C     (0x0, 0x1, 0x2)
  - 8 bit IR0, IR1, IR2
- - 8 bit SP
- - 8 bit BP
- - 8 bit BANK
- - 8 bit ADDR
+ - 8 bit SP                                     (0xA)
+ - 8 bit BP                                     (0xB)
+ - 8 bit BANK                                   (0xE)
+ - 8 bit ADDR                                   (0xF)
  - 4 bit FLAGS
 
 CPU main data path goes only through the ALU.
@@ -33,49 +33,50 @@ ISA:
 
     ret                             (0x01)
 
-    push    ra                      (0x10)
+    pop     rZ                      (0x2Z)
     ...
 
-    pop     ra                      (0x20)
-    ...
-
-    sto     ra                      (0x30)
-    ...
-
-    lda     ra                      (0xF0)
+    lda     rZ                      (0xFZ)
     ...
 
     -- 2 byte instructions --
-    add     ra      rX      rY      (0x40 XY)
+    add     rZ      rX      rY      (0x4Z XY)
     ...
 
-    addc    ra      rX      rY      (0x50 XY)
+    addc    rZ      rX      rY      (0x5Z XY)
     ...
 
-    iadd    ra      rX      Y       (0x60 XY)
+    iadd    rZ      rX      Y       (0x6Z XY)
     ...
 
-    sub     ra      rX      rY      (0x70 XY)
+    sub     rZ      rX      rY      (0x7Z XY)
     ...
 
-    subc    ra      rX      rY      (0x80 XY)
+    subc    rZ      rX      rY      (0x8Z XY)
     ...
 
-    isub    ra      rX      Y       (0x90 XY)
+    isub    rZ      rX      Y       (0x9Z XY)
     ...
 
-    imm     ra      XX              (0xA0 XX)
+    imm     rZ      XX              (0xAZ XX)
     ...
 
-    nand    ra      rX      rY      (0xB0 XY)
+    nand    rZ      rX      rY      (0xBZ XY)
     ...
     
-    cmp     rX      rY              (0xC0 XY)
+    cmp     rX      rY              (0x30 XY)
 
-    stlr    rX      XX              (0xD0 XX)
+    push    rX                      (0x10 X0)
+    ...
+
+    sto     rX                      (0x11 X0)
     ...
 
     -- 3 byte instructions --
+    strl    rZ      YY      rX      (0xCZ 0X YY)
+
+    ldrl    rZ      YY      rX      (0xDZ 0X YY)
+
     jmp     XXXX                    (0xE0 XX XX)
     jmpz    XXXX                    (0xE1 XX XX)
     jmpn    XXXX                    (0xE2 XX XX)
