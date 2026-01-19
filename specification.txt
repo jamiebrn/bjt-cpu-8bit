@@ -21,6 +21,8 @@ Registers:
 CPU main data path goes only through the ALU.
 Registers are not directly connected - register transfers are facilitated by ALU operations, e.g. iadd ra rb 0, which transfers rb to ra.
 
+All memory addressing operations will operate in the current bank.
+
 ALU:
  - Addition
  - Subtraction
@@ -31,56 +33,46 @@ ISA:
     -- 1 byte instructions --
     stop                            (0x00)
 
-    ret                             (0x01)
+    ret                             (0x01)                      // return from func - pop PC & BP from stack
 
-    pop     rZ                      (0x2Z)
-    ...
+    pop     rZ                      (0x2Z)                      // pop stack into reg Z
 
-    lda     rZ                      (0xFZ)
-    ...
+    lda     rZ                      (0xFZ)                      // load memory contents at ADDR into reg Z
+
+    plda    rZ                      (0x3Z)                      // load ROM contents at ADDR into reg Z
 
     -- 2 byte instructions --
-    add     rZ      rX      rY      (0x4Z XY)
-    ...
+    add     rZ      rX      rY      (0x4Z XY)                   // add reg X and reg Y, store in reg Z
 
-    addc    rZ      rX      rY      (0x5Z XY)
-    ...
+    addc    rZ      rX      rY      (0x5Z XY)                   // add considering carry flag
 
-    iadd    rZ      rX      Y       (0x6Z XY)
-    ...
+    sub     rZ      rX      rY      (0x7Z XY)                   // sub reg X and reg Y, store in reg Z
 
-    sub     rZ      rX      rY      (0x7Z XY)
-    ...
+    subc    rZ      rX      rY      (0x8Z XY)                   // sub considering carry flag
 
-    subc    rZ      rX      rY      (0x8Z XY)
-    ...
+    imm     rZ      XX              (0xAZ XX)                   // store immediate byte in reg Z
 
-    isub    rZ      rX      Y       (0x9Z XY)
-    ...
-
-    imm     rZ      XX              (0xAZ XX)
-    ...
-
-    nand    rZ      rX      rY      (0xBZ XY)
-    ...
+    nand    rZ      rX      rY      (0xBZ XY)                   // bitwise NAND reg X and reg Y, store in reg Z
     
-    cmp     rX      rY              (0x30 XY)
+    push    rX                      (0x10 X0)                   // push reg X onto stack
 
-    push    rX                      (0x10 X0)
-    ...
+    sto     rX                      (0x11 X0)                   // store reg Z at address in ADDR
 
-    sto     rX                      (0x11 X0)
-    ...
+    cmp     rX      rY              (0x12 XY)                   // update FLAGS with reg X and reg Y as operands
+
+    strla   rX      rY              (0x60 XY)                   // store reg A at address X + Y
+
+    ldrl    rZ      rX      rY      (0x9Z XY)                   // load memory contents at address X + Y into reg A
 
     -- 3 byte instructions --
-    strl    rZ      YY      rX      (0xCZ 0X YY)
+    iadd    rZ      rX      YY      (0xCZ 0X YY)                // immediate add to reg X, store in Z
 
-    ldrl    rZ      YY      rX      (0xDZ 0X YY)
+    isub    rZ      rX      YY      (0xDZ 0X YY)                // immediate sub from reg X, store in Z
 
-    jmp     XXXX                    (0xE0 XX XX)
+    jmp     XXXX                    (0xE0 XX XX)                // (conditional) jumps
     jmpz    XXXX                    (0xE1 XX XX)
     jmpn    XXXX                    (0xE2 XX XX)
     jmpc    XXXX                    (0xE4 XX XX)
     jmpo    XXXX                    (0xE8 XX XX)
 
-    call    XXXX                    (0xEA XX XX)
+    call    XXXX                    (0xEA XX XX)                // call func/address - push BP and PC to stack, BP set to SP, PC set to XXXX
