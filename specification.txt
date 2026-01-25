@@ -65,9 +65,9 @@ ISA:
     ldrl    rZ      rX      rY      (0x9Z XY)                   // load memory contents at address X + Y into reg A
 
     -- 3 byte instructions --
-    iadd    rZ      rX      YY      (0xCZ 0X YY)                // immediate add to reg X, store in Z
+    iadd    rZ      rX      YY      (0xCZ X0 YY)                // immediate add to reg X, store in Z
 
-    isub    rZ      rX      YY      (0xDZ 0X YY)                // immediate sub from reg X, store in Z
+    isub    rZ      rX      YY      (0xDZ X0 YY)                // immediate sub from reg X, store in Z
 
     jmp     XXXX                    (0xE0 XX XX)                // (conditional) jumps
     jmpz    XXXX                    (0xE1 XX XX)
