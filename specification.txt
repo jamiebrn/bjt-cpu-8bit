@@ -1,9 +1,5 @@
 --- 8 bit discrete BJT processor ---
 
-// i have completely fucked up function call implementation
-// hilarious
-// base pointer literally useless atm
-
 Harvard architecture
 8 bit word size
 16 bit program address space (EEPROM)
@@ -39,7 +35,7 @@ ISA:
 
     ret                             (0x01)                      // return from func - pop PC & BP from stack
 
-    pcall                           (0x02)                      // call func ptr - push BP and PC to stack, BP set to SP, PC set to 256 * BANK + ADDR
+    pcall                           (0x02)                      // call func ptr - push BP and PC to stack, BP set to SP, PC set to ADDR
 
     pop     rZ                      (0x2Z)                      // pop stack into reg Z
     
