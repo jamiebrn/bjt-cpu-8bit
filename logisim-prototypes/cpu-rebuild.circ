@@ -635,8 +635,9 @@
       <a name="addrWidth" val="16"/>
       <a name="appearance" val="logisim_evolution"/>
       <a name="contents">addr/data: 16 8
-a0 10 cf f0 1 11 f0 12
-f0 e1 0 f e0 0 2
+e0 0 3 a0 10 cf f0 1
+11 f0 12 f0 e1 0 12 e0
+0 5
 </a>
     </comp>
     <comp lib="4" loc="(2500,870)" name="RAM">

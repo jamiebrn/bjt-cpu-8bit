@@ -10,12 +10,12 @@ Harvard architecture
 
 Registers:
  - 16 bit PC (jk counter with overwrite)
- - 8 bit general purpose/accessible A, B, C     (0x0, 0x1, 0x2)
+ - 8 bit general purpose/accessible A, B, C     (0x0 / ra, 0x1 / rb, 0x2 / rc)
  - 8 bit IR0, IR1, IR2
- - 8 bit SP                                     (0xA)
- - 8 bit BP                                     (0xB)
- - 8 bit BANK                                   (0xE)
- - 8 bit ADDR                                   (0xF)
+ - 8 bit SP                                     (0xA / rsp)
+ - 8 bit BP                                     (0xB / rbp)
+ - 8 bit BANK                                   (0xE / rbnk)
+ - 8 bit ADDR                                   (0xF / radr)
  - 4 bit FLAGS
 
 CPU main data path goes only through the ALU.

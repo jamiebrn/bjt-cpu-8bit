@@ -69,6 +69,79 @@ std::unordered_map<std::string, uint8_t> registerNames = {
     {"radr",    0x0F}
 };
 
+char charLower(char c) {
+    if (c >= 'A' && c <= 'Z') {
+        return c + ('a' - 'A');
+    }
+
+    return c;
+}
+
+bool parseInt(const std::string& str, uint8_t& value) {
+    if (str.length() < 1) return false;
+
+    bool negative = false;
+    int parseValue = 0;
+    for (int i = 0; i < str.length(); i++) {
+        char c = str[i];
+
+        if (i == 0 && c == '-') {
+            negative = true;
+            continue;
+        }
+
+        if (c >= '0' && c <= '9') {
+            parseValue = parseValue * 10 + (c - '0');
+        } else {
+            return false;
+        }
+    }
+
+    if (negative) {
+        parseValue = -parseValue;
+        if (parseValue > 127 || parseValue < -128) {
+            return false;
+        }
+    } else if (parseValue >= 256) {
+        return false;
+    }
+
+    value = (int8_t)parseValue;
+
+    return true;
+}
+
+bool parseHex(const std::string& str, uint8_t& value) {
+    if (str.length() < 3 || str.length() > 4 || str[0] != '0' || charLower(str[1]) != 'x') {
+        return false;
+    }
+
+    value = 0;
+    for (int i = 2; i < str.length(); i++) {
+        char c = charLower(str[i]);
+
+        if (c >= '0' && c <= '9') {
+            value = (value << 4) + (c - '0');
+        } else if (c >= 'a' && c <= 'f') {
+            value = (value << 4) + (c - 'a' + 10);
+        } else {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool parseValue(const std::string& str, uint8_t& value) {
+    if (parseInt(str, value)) {
+        return true;
+    } else if (parseHex(str, value)) {
+        return true;
+    }
+
+    return false;
+}
+
 Token createToken(const std::string& str, size_t line) {
     Token token;
     token.str = str;
@@ -127,7 +200,11 @@ std::vector<uint8_t> assemble(const std::string& text) {
     bytecode[0] = instructionData.at("jmp").opcode;
 
     std::unordered_map<std::string, uint16_t> labelDefs;
-    std::unordered_map<uint16_t, std::string> labelRefs;
+    std::unordered_map<uint16_t, std::pair<std::string, size_t>> labelRefs; // value: label, line
+
+    for (auto token = tokens.begin(); token != tokens.end(); token++) {
+        printf("TOKEN TYPE: %d      %s\n", token->type, token->str.c_str());
+    }
 
     bool programMode = true;
 
@@ -138,7 +215,9 @@ std::vector<uint8_t> assemble(const std::string& text) {
                 return {};
             }
 
-            labelDefs[token->str] = bytecode.size();
+            labelDefs[token->str.substr(0, token->str.size() - 1)] = bytecode.size();
+            token++;
+            continue;
         }
 
         if (programMode) {
@@ -150,21 +229,59 @@ std::vector<uint8_t> assemble(const std::string& text) {
                 
                 if (instrToken.instrData->embedDestReg) {
                     token++;
-                    if (token->type != TokenType::REG) {
-                        printf("ERROR: Expected register operand on line %zu: %s\n", token->line, token->str.c_str());
+                    if (token == tokens.end() || token->type != TokenType::REG) {
+                        printf("ERROR: Expected register operand on line %zu for instruction: %s\n", instrToken.line, instrToken.str.c_str());
                         return {};
                     }
 
                     opcode |= token->regValue;
                 }
 
+                bytecode.push_back(opcode);
+
+                uint8_t operand = 0;
+                bool pushedReg = false;
+
                 for (int i = instrToken.instrData->embedDestReg ? 1 : 0; i < instrToken.instrData->tokenSuffixes.size(); i++) {
                     token++;
+                    if (token == tokens.end()) {
+                        printf("ERROR: Expected operand on line %zu for instruction: %s\n", instrToken.line, instrToken.str.c_str());
+                        return {};
+                    }
+
                     if (token->type != instrToken.instrData->tokenSuffixes[i]) {
                         printf("ERROR: Unexpected token on line %zu: %s\n", token->line, token->str.c_str());
                         return {};
                     }
-                    
+
+                    if (token->type == TokenType::REG) {
+                        operand = operand << 4;
+                        operand |= token->regValue;
+                        if (pushedReg) {
+                            bytecode.push_back(operand);
+                            operand = 0;
+                        }
+                        pushedReg = !pushedReg;
+                    } else if (token->type == TokenType::VALUE) {
+                        if (operand != 0) {
+                            bytecode.push_back(operand << 4);
+                        }
+                        if (parseValue(token->str, operand)) {
+                            bytecode.push_back(operand);
+                            operand = 0;
+                        } else {
+                            printf("ERROR: Failed to parse value on line %zu: %s\n", token->line, token->str.c_str());
+                            return {};
+                        }
+                    } else if (token->type == TokenType::LABEL) {
+                        labelRefs[bytecode.size()] = {token->str, token->line}; // replace with correct label addr after assembled
+                        bytecode.push_back(0x00);
+                        bytecode.push_back(0x00);
+                    }
+                }
+
+                if (operand != 0) {
+                    bytecode.push_back(operand << 4);
                 }
             } else {
                 printf("ERROR: Unexpected stray token on line %zu: %s\n", token->line, token->str.c_str());
@@ -177,11 +294,34 @@ std::vector<uint8_t> assemble(const std::string& text) {
                 printf("ERROR: Unexpected label in data section on line %zu: %s\n", token->line, token->str.c_str());
                 return {};
             } else {
-
+                uint8_t value;
+                if (parseValue(token->str, value)) {
+                    bytecode.push_back(value);
+                } else {
+                    printf("ERROR: Failed to parse value on line %zu: %s\n", token->line, token->str.c_str());
+                    return {};
+                }
             }
         }
 
         token++;
+    }
+
+    if (auto mainLabel = labelDefs.find("main"); mainLabel != labelDefs.end()) {
+        uint16_t mainAddr = mainLabel->second;
+        bytecode[1] = (mainAddr >> 8) & 0xFF;
+        bytecode[2] = mainAddr & 0xFF;
+    }
+
+    for (auto label = labelRefs.begin(); label != labelRefs.end(); label++) {
+        uint16_t addr = label->first;
+        if (auto labelDef = labelDefs.find(label->second.first); labelDef != labelDefs.end()) {
+            bytecode[addr] = (labelDef->second >> 8) & 0xFF;
+            bytecode[addr + 1] = labelDef->second & 0xFF;
+        } else {
+            printf("ERROR: Undefined label on line %zu: %s\n", label->second.second, label->second.first.c_str());
+            return {};
+        }
     }
 
     return bytecode;
@@ -204,8 +344,17 @@ int main(int argc, char** argv) {
     std::string fileStr(fileSize, 0);
     file.seekg(0);
     file.read(&fileStr[0], fileSize);
+    file.close();
 
     std::vector<uint8_t> bytecode = assemble(fileStr);
+
+    std::string filename(argv[1]);
+    std::ofstream outFile(filename.substr(0, filename.find_last_of('.')) + ".bin", std::ios::binary);
+    
+    for (uint8_t byte : bytecode) {
+        outFile << byte;
+    }
+    outFile.close();
 
     return 0;
 }
