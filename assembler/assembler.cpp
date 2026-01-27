@@ -281,7 +281,7 @@ bool assemblePseudoOp(std::vector<Token>& tokens, std::vector<Token>::iterator& 
         bytecode.push_back(instructionData.at("iadd").opcode | destReg);
         bytecode.push_back(token->regValue << 4);
         bytecode.push_back(0x00);
-        
+
         return true;
     } else if (token->str == "setadr") {
         token++;
@@ -316,10 +316,6 @@ std::vector<uint8_t> assemble(const std::string& filename) {
 
     std::unordered_map<std::string, uint16_t> labelDefs;
     std::unordered_map<uint16_t, LabelRef> labelRefs;
-
-    for (auto token = tokens.begin(); token != tokens.end(); token++) {
-        printf("TOKEN TYPE: %d      %s\n", token->type, token->str.c_str());
-    }
 
     bool programMode = true;
 
