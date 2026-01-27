@@ -374,8 +374,9 @@ std::vector<uint8_t> assemble(const std::string& filename) {
                         }
                         pushedReg = !pushedReg;
                     } else if (token->type == TokenType::VALUE) {
-                        if (operand != 0) {
+                        if (pushedReg) {
                             bytecode.push_back(operand << 4);
+                            pushedReg = false;
                         }
                         if (parseValue(token->str, operand)) {
                             bytecode.push_back(operand);
@@ -391,7 +392,7 @@ std::vector<uint8_t> assemble(const std::string& filename) {
                     }
                 }
 
-                if (operand != 0) {
+                if (pushedReg) {
                     bytecode.push_back(operand << 4);
                 }
             } else if (!assemblePseudoOp(tokens, token, bytecode, labelRefs)) {
