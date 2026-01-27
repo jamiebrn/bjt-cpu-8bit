@@ -78,3 +78,10 @@ ISA:
     jmpo    XXXX                    (0xE8 XX XX)
 
     call    XXXX                    (0xEA XX XX)                // call func/address - push BP and PC to stack, BP set to SP, PC set to XXXX
+
+
+ASM Pseudo-OPs:
+    cpy     rZ      rX              (iadd   rZ      rX      0x00)       // copy value from reg X to reg Z
+    
+    setadr  XXYY                    (imm    rbnk    XX
+                                     imm    radr    YY)                 // set 16 bit address pointed to by bank and address registers

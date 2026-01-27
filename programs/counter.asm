@@ -1,3 +1,4 @@
+#include "counter.asm"
 
 main:
     imm     ra      0x10

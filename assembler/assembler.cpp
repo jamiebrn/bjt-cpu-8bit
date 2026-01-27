@@ -2,8 +2,14 @@
 #include <fstream>
 #include <stdio.h>
 #include <string>
+#include <unordered_set>
 #include <vector>
 #include <unordered_map>
+
+static constexpr int HEADER_SIZE = 3;
+static const char* DATA_DIRECTIVE = "[data]";
+static const char* PROGRAM_DIRECTIVE = "[program]";
+static const char* INCLUDE_DIRECTIVE = "#include";
 
 struct InstrData;
 
@@ -11,6 +17,7 @@ enum class TokenType {
     INSTR,
     REG,
     VALUE,
+    STRING_LIT,
     LABEL,
     LABEL_DEF
 };
@@ -18,6 +25,8 @@ enum class TokenType {
 struct Token {
     TokenType type;
     std::string str;
+
+    std::string filename;
     size_t line;
     union {
         const InstrData* instrData = nullptr;
@@ -155,6 +164,9 @@ Token createToken(const std::string& str, size_t line) {
         token.regValue = iter->second;
     } else if (str[0] >= '0' && str[0] <= '9') {
         token.type = TokenType::VALUE;
+    } else if (str[0] == '\"' && str[str.size() - 1] == '\"') {
+        token.type = TokenType::STRING_LIT;
+        token.str = str.substr(1, str.size() - 2);
     } else if (str[str.size() - 1] == ':') {
         token.type = TokenType::LABEL_DEF;
     } else {
@@ -164,18 +176,71 @@ Token createToken(const std::string& str, size_t line) {
     return token;
 }
 
-std::vector<Token> tokenise(const std::string& text) {
-    std::vector<Token> tokens;
+bool tokeniseFile(const std::string& filename, std::unordered_set<std::string>& includedFiles, std::vector<Token>& tokens) {
+    if (includedFiles.contains(filename)) {
+        return true;
+    }
+
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        printf("ERROR: Could not open file %s\n", filename.c_str());
+        return false;
+    }
+
+    includedFiles.insert(filename);
+
+    file.seekg(0, std::ios::end);
+    size_t fileSize = file.tellg();
+
+    std::string text(fileSize, 0);
+    file.seekg(0);
+    file.read(&text[0], fileSize);
+    file.close();
+
     std::string tokenBuffer;
 
     size_t line = 0;
+    bool parsingComment = false;
+    bool includeNext = false;
 
     for (char c : text) {
+        if (parsingComment) {
+            if (c == '\n') {
+                parsingComment = false;
+            }
+            continue;
+        }
+
         if ((c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (c < '0' || c > '9')
-            && c != '.' && c != ':' && c != '[' && c != ']') {
+            && c != '.' && c != ':' && c != '[' && c != ']' && c != '#' && c != '\"') {
             if (!tokenBuffer.empty()) {
-                tokens.push_back(createToken(tokenBuffer, line));
+                if (!includeNext && tokenBuffer == INCLUDE_DIRECTIVE) {
+                    includeNext = true;
+                } else {
+                    Token token = createToken(tokenBuffer, line);
+                    token.filename = filename;
+
+                    if (includeNext) {
+                        if (token.type == TokenType::STRING_LIT) {
+                            if (!tokeniseFile(token.str, includedFiles, tokens)) {
+                                tokens.clear();
+                                return false;
+                            }
+                        } else {
+                            printf("ERROR: Expected file name after include in file \"%s\", line %zu\n", filename.c_str(), line);
+                        }
+
+                        includeNext = false;
+                    } else {
+                        tokens.push_back(token);
+                    }
+                }
+
                 tokenBuffer.clear();
+            }
+
+            if (c == ';') {
+                parsingComment = true;
             }
 
             if (c == '\n') {
@@ -187,20 +252,70 @@ std::vector<Token> tokenise(const std::string& text) {
         tokenBuffer += c;
     }
 
-    return tokens;
+    return true;
 }
 
-std::vector<uint8_t> assemble(const std::string& text) {
-    static constexpr int HEADER_SIZE = 3;
-    static const char* DATA_DIRECTIVE = "[data]";
-    static const char* PROGRAM_DIRECTIVE = "[program]";
+struct LabelRef {
+    std::string label;
+    std::string filename;
+    size_t line;
+    bool high = true;
+    bool low = true;
+};
 
-    std::vector<Token> tokens = tokenise(text);
+bool assemblePseudoOp(std::vector<Token>& tokens, std::vector<Token>::iterator& token, std::vector<uint8_t>& bytecode,
+    std::unordered_map<uint16_t, LabelRef>& labelRefs) {
+    if (token->str == "cpy") {
+        token++;
+        if (token == tokens.end() || token->type != TokenType::REG) {
+            return false;
+        }
+        
+        uint8_t destReg = token->regValue;
+        
+        token++;
+        if (token == tokens.end() || token->type != TokenType::REG) {
+            return false;
+        }
+
+        bytecode.push_back(instructionData.at("iadd").opcode | destReg);
+        bytecode.push_back(token->regValue << 4);
+        bytecode.push_back(0x00);
+        
+        return true;
+    } else if (token->str == "setadr") {
+        token++;
+        if (token == tokens.end() || token->type != TokenType::LABEL) {
+            return false;
+        }
+
+        uint8_t opcode = instructionData.at("imm").opcode;
+        bytecode.push_back(opcode | registerNames.at("rbnk"));
+        bytecode.push_back(0x00);
+        labelRefs[bytecode.size() - 1] = LabelRef{token->str, token->filename, token->line, true, false};
+        
+        bytecode.push_back(opcode | registerNames.at("radr"));
+        bytecode.push_back(0x00);
+        labelRefs[bytecode.size() - 1] = LabelRef{token->str, token->filename, token->line, false, true};
+
+        return true;
+    }
+
+    return false;
+}
+
+std::vector<uint8_t> assemble(const std::string& filename) {
+    std::vector<Token> tokens;
+    std::unordered_set<std::string> includedFiles;
+    if (!tokeniseFile(filename, includedFiles, tokens)) {
+        return {};
+    }
+
     std::vector<uint8_t> bytecode(HEADER_SIZE, 0x00);
     bytecode[0] = instructionData.at("jmp").opcode;
 
     std::unordered_map<std::string, uint16_t> labelDefs;
-    std::unordered_map<uint16_t, std::pair<std::string, size_t>> labelRefs; // value: label, line
+    std::unordered_map<uint16_t, LabelRef> labelRefs;
 
     for (auto token = tokens.begin(); token != tokens.end(); token++) {
         printf("TOKEN TYPE: %d      %s\n", token->type, token->str.c_str());
@@ -211,7 +326,7 @@ std::vector<uint8_t> assemble(const std::string& text) {
     for (auto token = tokens.begin(); token != tokens.end();) {
         if (token->type == TokenType::LABEL_DEF) {
             if (labelDefs.contains(token->str)) {
-                printf("ERROR: Redefinition of label on line %zu: %s\n", token->line, token->str.c_str());
+                printf("ERROR: Redefinition of label in file \"%s\", on line %zu: %s\n", token->filename.c_str(), token->line, token->str.c_str());
                 return {};
             }
 
@@ -230,7 +345,7 @@ std::vector<uint8_t> assemble(const std::string& text) {
                 if (instrToken.instrData->embedDestReg) {
                     token++;
                     if (token == tokens.end() || token->type != TokenType::REG) {
-                        printf("ERROR: Expected register operand on line %zu for instruction: %s\n", instrToken.line, instrToken.str.c_str());
+                        printf("ERROR: Expected register operand in file \"%s\", on line %zu for instruction: %s\n", token->filename.c_str(), instrToken.line, instrToken.str.c_str());
                         return {};
                     }
 
@@ -245,12 +360,12 @@ std::vector<uint8_t> assemble(const std::string& text) {
                 for (int i = instrToken.instrData->embedDestReg ? 1 : 0; i < instrToken.instrData->tokenSuffixes.size(); i++) {
                     token++;
                     if (token == tokens.end()) {
-                        printf("ERROR: Expected operand on line %zu for instruction: %s\n", instrToken.line, instrToken.str.c_str());
+                        printf("ERROR: Expected operand in file \"%s\", on line %zu for instruction: %s\n", token->filename.c_str(), instrToken.line, instrToken.str.c_str());
                         return {};
                     }
 
                     if (token->type != instrToken.instrData->tokenSuffixes[i]) {
-                        printf("ERROR: Unexpected token on line %zu: %s\n", token->line, token->str.c_str());
+                        printf("ERROR: Unexpected token in file \"%s\", on line %zu: %s\n", token->filename.c_str(), token->line, token->str.c_str());
                         return {};
                     }
 
@@ -270,11 +385,11 @@ std::vector<uint8_t> assemble(const std::string& text) {
                             bytecode.push_back(operand);
                             operand = 0;
                         } else {
-                            printf("ERROR: Failed to parse value on line %zu: %s\n", token->line, token->str.c_str());
+                            printf("ERROR: Failed to parse value in file \"%s\", on line %zu: %s\n", token->filename.c_str(), token->line, token->str.c_str());
                             return {};
                         }
                     } else if (token->type == TokenType::LABEL) {
-                        labelRefs[bytecode.size()] = {token->str, token->line}; // replace with correct label addr after assembled
+                        labelRefs[bytecode.size()] = {token->str, token->filename, token->line}; // replace with correct label addr after assembled
                         bytecode.push_back(0x00);
                         bytecode.push_back(0x00);
                     }
@@ -283,22 +398,22 @@ std::vector<uint8_t> assemble(const std::string& text) {
                 if (operand != 0) {
                     bytecode.push_back(operand << 4);
                 }
-            } else {
-                printf("ERROR: Unexpected stray token on line %zu: %s\n", token->line, token->str.c_str());
+            } else if (!assemblePseudoOp(tokens, token, bytecode, labelRefs)) {
+                printf("ERROR: Unexpected stray token in file \"%s\", on line %zu: %s\n", token->filename.c_str(), token->line, token->str.c_str());
                 return {};
             }
         } else {
             if (token->str == PROGRAM_DIRECTIVE) {
                 programMode = true;
             } else if (token->type != TokenType::VALUE) {
-                printf("ERROR: Unexpected label in data section on line %zu: %s\n", token->line, token->str.c_str());
+                printf("ERROR: Unexpected label in data section in file \"%s\", on line %zu: %s\n", token->filename.c_str(), token->line, token->str.c_str());
                 return {};
             } else {
                 uint8_t value;
                 if (parseValue(token->str, value)) {
                     bytecode.push_back(value);
                 } else {
-                    printf("ERROR: Failed to parse value on line %zu: %s\n", token->line, token->str.c_str());
+                    printf("ERROR: Failed to parse value in file \"%s\", on line %zu: %s\n", token->filename.c_str(), token->line, token->str.c_str());
                     return {};
                 }
             }
@@ -311,15 +426,23 @@ std::vector<uint8_t> assemble(const std::string& text) {
         uint16_t mainAddr = mainLabel->second;
         bytecode[1] = (mainAddr >> 8) & 0xFF;
         bytecode[2] = mainAddr & 0xFF;
+    } else {
+        printf("ERROR: Must define program entry point (\"main\" label)\n");
+        return {};
     }
 
     for (auto label = labelRefs.begin(); label != labelRefs.end(); label++) {
         uint16_t addr = label->first;
-        if (auto labelDef = labelDefs.find(label->second.first); labelDef != labelDefs.end()) {
-            bytecode[addr] = (labelDef->second >> 8) & 0xFF;
-            bytecode[addr + 1] = labelDef->second & 0xFF;
+        if (auto labelDef = labelDefs.find(label->second.label); labelDef != labelDefs.end()) {
+            if (label->second.high) {
+                bytecode[addr] = (labelDef->second >> 8) & 0xFF;
+                addr++;
+            }
+            if (label->second.low) {
+                bytecode[addr] = labelDef->second & 0xFF;
+            }
         } else {
-            printf("ERROR: Undefined label on line %zu: %s\n", label->second.second, label->second.first.c_str());
+            printf("ERROR: Undefined label referenced in file \"%s\", on line %zu: %s\n", label->second.filename.c_str(), label->second.line, label->second.label.c_str());
             return {};
         }
     }
@@ -333,20 +456,11 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    std::ifstream file(argv[1]);
-    if (!file.is_open()) {
-        printf("Could not open file %s\n", argv[1]);
+    std::vector<uint8_t> bytecode = assemble(argv[1]);
+
+    if (bytecode.empty()) {
         return 1;
     }
-
-    file.seekg(0, std::ios::end);
-    size_t fileSize = file.tellg();
-    std::string fileStr(fileSize, 0);
-    file.seekg(0);
-    file.read(&fileStr[0], fileSize);
-    file.close();
-
-    std::vector<uint8_t> bytecode = assemble(fileStr);
 
     std::string filename(argv[1]);
     std::ofstream outFile(filename.substr(0, filename.find_last_of('.')) + ".bin", std::ios::binary);
