@@ -220,7 +220,8 @@ bool tokeniseFile(const std::string& filename, std::unordered_set<std::string>& 
         }
 
         if ((c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (c < '0' || c > '9')
-            && c != '.' && c != ':' && c != '[' && c != ']' && c != '#' && c != '\"' && c != '_') {
+            && c != '.' && c != ':' && c != '[' && c != ']' && c != '#' && c != '\"'
+            && c != '/' && c != '\\' && c != '_') {
             if (!tokenBuffer.empty()) {
                 if (!parsingInclude && tokenBuffer == INCLUDE_DIRECTIVE) {
                     parsingInclude = true;
@@ -386,7 +387,7 @@ std::vector<uint8_t> assemble(const std::string& filename) {
                     return {};
                 }
             } else {
-                if (labelDefs.contains(token->str)) {
+                if (labelDefs.contains(token->str.substr(0, token->str.size() - 1))) {
                     printf("ERROR: Redefinition of label in file \"%s\", on line %zu: %s\n", token->filename.c_str(), token->line, token->str.c_str());
                     return {};
                 }

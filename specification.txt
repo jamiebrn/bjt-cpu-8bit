@@ -18,10 +18,14 @@ Registers:
  - 8 bit ADDR                                   (0xF / radr)
  - 4 bit FLAGS
 
+Variable instruction length (1-3 bytes)
+
 CPU main data path goes only through the ALU.
 Registers are not directly connected - register transfers are facilitated by ALU operations, e.g. iadd ra rb 0, which transfers rb to ra.
 
 All memory addressing operations will operate in the current bank.
+
+Access of rsp and rbp is intended for read-only purposes (e.g. lda from stack), but writing is permitted.
 
 ALU:
  - Addition
@@ -64,7 +68,7 @@ ISA:
 
     strla   rX      rY              (0x60 XY)                   // store reg A at address X + Y
 
-    ldrl    rZ      rX      rY      (0x9Z XY)                   // load memory contents at address X + Y into reg A
+    ldrl    rZ      rX      rY      (0x9Z XY)                   // load memory contents at address X + Y into reg Z
 
     -- 3 byte instructions --
     iadd    rZ      rX      YY      (0xCZ X0 YY)                // immediate add to reg X, store in Z
@@ -85,3 +89,10 @@ ASM Pseudo-OPs:
     
     setadr  XXYY                    (imm    rbnk    XX
                                      imm    radr    YY)                 // set 16 bit address pointed to by bank and address registers
+
+
+Calling Convention:
+ - Return in ra (with high in rb if 16 bit)
+ - Pass parameters in ra, rb, rc, then push to stack (caller must pop)
+ - All non-parameter registers (e.g. rb, rc for a 1 parameter function) must be retained on return
+ - BANK and ADDR should be retained unless function behaviour explicitly mutates
