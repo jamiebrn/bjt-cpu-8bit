@@ -1,3 +1,4 @@
+#define START_A 0x12
 
 multiply:
     push    rbnk                    ; retain reg
@@ -7,16 +8,16 @@ multiply:
     imm     rc      0x00
     push    rc                      ; accumulator
     isub    radr    rsp     0x01    ; point to accumulator
-multiplyloop:
+.loop:
     lda     rc                      ; load accumulator and add
     add     rc      rc      ra
     sto     rc
     isub    rb      rb      0x01    ; dec counter
     imm     rc      0x00
     cmp     rb      rc
-    jmpz    multiplyend             ; end counter == 0
-    jmp     multiplyloop
-multiplyend:
+    jmpz    .end                    ; end counter == 0
+    jmp     .loop
+.end:
     pop     ra                      ; return accumulator
     pop     rc
     pop     radr
@@ -24,7 +25,7 @@ multiplyend:
     ret
 
 main:
-    imm     ra      0x12
+    imm     ra      START_A
     imm     rb      0x05
     call    multiply
     stop

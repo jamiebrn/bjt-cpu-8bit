@@ -10,6 +10,8 @@ static constexpr int HEADER_SIZE = 3;
 static const char* DATA_DIRECTIVE = "[data]";
 static const char* PROGRAM_DIRECTIVE = "[program]";
 static const char* INCLUDE_DIRECTIVE = "#include";
+static const char* DEFINE_DIRECTIVE = "#define";
+static const char LABEL_LOCAL_PREFIX = '.';
 
 struct InstrData;
 
@@ -32,6 +34,8 @@ struct Token {
         const InstrData* instrData = nullptr;
         uint8_t regValue;
     };
+
+    bool lastInFile = false;
 };
 
 struct InstrData {
@@ -176,7 +180,8 @@ Token createToken(const std::string& str, size_t line) {
     return token;
 }
 
-bool tokeniseFile(const std::string& filename, std::unordered_set<std::string>& includedFiles, std::vector<Token>& tokens) {
+bool tokeniseFile(const std::string& filename, std::unordered_set<std::string>& includedFiles, std::vector<Token>& tokens,
+    std::unordered_map<std::string, Token>& defines) {
     if (includedFiles.contains(filename)) {
         return true;
     }
@@ -199,39 +204,79 @@ bool tokeniseFile(const std::string& filename, std::unordered_set<std::string>& 
 
     std::string tokenBuffer;
 
-    size_t line = 0;
+    size_t line = 1;
     bool parsingComment = false;
-    bool includeNext = false;
+    bool parsingInclude = false;
+    bool parsingDefine = false;
+    std::string defineName = "";
 
     for (char c : text) {
         if (parsingComment) {
             if (c == '\n') {
                 parsingComment = false;
+                line++;
             }
             continue;
         }
 
         if ((c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (c < '0' || c > '9')
-            && c != '.' && c != ':' && c != '[' && c != ']' && c != '#' && c != '\"') {
+            && c != '.' && c != ':' && c != '[' && c != ']' && c != '#' && c != '\"' && c != '_') {
             if (!tokenBuffer.empty()) {
-                if (!includeNext && tokenBuffer == INCLUDE_DIRECTIVE) {
-                    includeNext = true;
+                if (!parsingInclude && tokenBuffer == INCLUDE_DIRECTIVE) {
+                    parsingInclude = true;
+                } else if (!parsingDefine && tokenBuffer == DEFINE_DIRECTIVE) {
+                    parsingDefine = true;
                 } else {
                     Token token = createToken(tokenBuffer, line);
                     token.filename = filename;
 
-                    if (includeNext) {
+                    if (parsingInclude) {
                         if (token.type == TokenType::STRING_LIT) {
-                            if (!tokeniseFile(token.str, includedFiles, tokens)) {
+                            if (!tokeniseFile(token.str, includedFiles, tokens, defines)) {
                                 tokens.clear();
                                 return false;
                             }
                         } else {
                             printf("ERROR: Expected file name after include in file \"%s\", line %zu\n", filename.c_str(), line);
+                            tokens.clear();
+                            return false;
                         }
 
-                        includeNext = false;
+                        parsingInclude = false;
+                    } else if (parsingDefine) {
+                        if (defineName.empty()) {
+                            if (token.type == TokenType::LABEL) {
+                                if (defines.contains(token.str)) {
+                                    printf("ERROR: Found repeated define \"%s\" in file \"%s\", line %zu\n", token.str.c_str(), filename.c_str(), line);
+                                    tokens.clear();
+                                    return false;
+                                }
+
+                                defineName = token.str;
+                            } else {
+                                printf("ERROR: Expected name after define in file \"%s\", line %zu\n", filename.c_str(), line);
+                                tokens.clear();
+                                return false;
+                            }
+                        } else {
+                            if (token.type == TokenType::VALUE) {
+                                defines[defineName] = token;
+                            } else {
+                                printf("ERROR: Expected value for define \"%s\" in file \"%s\", line %zu\n", defineName.c_str(), filename.c_str(), line);
+                                tokens.clear();
+                                return false;
+                            }
+
+                            parsingDefine = false;
+                            defineName.clear();
+                        }
                     } else {
+                        if (token.type == TokenType::LABEL && defines.contains(token.str)) {
+                            token = defines.at(token.str);
+                            token.filename = filename;
+                            token.line = line;
+                        }
+
                         tokens.push_back(token);
                     }
                 }
@@ -252,11 +297,14 @@ bool tokeniseFile(const std::string& filename, std::unordered_set<std::string>& 
         tokenBuffer += c;
     }
 
+    tokens[tokens.size() - 1].lastInFile = true;
+
     return true;
 }
 
 struct LabelRef {
     std::string label;
+    std::string labelScope;
     std::string filename;
     size_t line;
     bool high = true;
@@ -264,7 +312,7 @@ struct LabelRef {
 };
 
 bool assemblePseudoOp(std::vector<Token>& tokens, std::vector<Token>::iterator& token, std::vector<uint8_t>& bytecode,
-    std::unordered_map<uint16_t, LabelRef>& labelRefs) {
+    std::unordered_map<uint16_t, LabelRef>& labelRefs, std::string labelScope) {
     if (token->str == "cpy") {
         token++;
         if (token == tokens.end() || token->type != TokenType::REG) {
@@ -292,11 +340,11 @@ bool assemblePseudoOp(std::vector<Token>& tokens, std::vector<Token>::iterator& 
         uint8_t opcode = instructionData.at("imm").opcode;
         bytecode.push_back(opcode | registerNames.at("rbnk"));
         bytecode.push_back(0x00);
-        labelRefs[bytecode.size() - 1] = LabelRef{token->str, token->filename, token->line, true, false};
+        labelRefs[bytecode.size() - 1] = LabelRef{token->str, labelScope, token->filename, token->line, true, false};
         
         bytecode.push_back(opcode | registerNames.at("radr"));
         bytecode.push_back(0x00);
-        labelRefs[bytecode.size() - 1] = LabelRef{token->str, token->filename, token->line, false, true};
+        labelRefs[bytecode.size() - 1] = LabelRef{token->str, labelScope, token->filename, token->line, false, true};
 
         return true;
     }
@@ -307,7 +355,9 @@ bool assemblePseudoOp(std::vector<Token>& tokens, std::vector<Token>::iterator& 
 std::vector<uint8_t> assemble(const std::string& filename) {
     std::vector<Token> tokens;
     std::unordered_set<std::string> includedFiles;
-    if (!tokeniseFile(filename, includedFiles, tokens)) {
+    std::unordered_map<std::string, Token> defines;
+
+    if (!tokeniseFile(filename, includedFiles, tokens, defines)) {
         return {};
     }
 
@@ -315,18 +365,39 @@ std::vector<uint8_t> assemble(const std::string& filename) {
     bytecode[0] = instructionData.at("jmp").opcode;
 
     std::unordered_map<std::string, uint16_t> labelDefs;
+    std::unordered_map<std::string, std::unordered_map<std::string, uint16_t>> labelDefsLocal;
     std::unordered_map<uint16_t, LabelRef> labelRefs;
+    std::string labelScope;
 
     bool programMode = true;
 
     for (auto token = tokens.begin(); token != tokens.end();) {
         if (token->type == TokenType::LABEL_DEF) {
-            if (labelDefs.contains(token->str)) {
-                printf("ERROR: Redefinition of label in file \"%s\", on line %zu: %s\n", token->filename.c_str(), token->line, token->str.c_str());
-                return {};
+            if (token->str[0] == '.') {
+                if (programMode) {
+                    if (labelScope.empty()) {
+                        printf("ERROR: Cannot define local label in global scope. File \"%s\", on line %zu: %s\n", token->filename.c_str(), token->line, token->str.c_str());
+                        return {};
+                    }
+
+                    labelDefsLocal[labelScope][token->str.substr(0, token->str.size() - 1)] = bytecode.size();
+                } else {
+                    printf("ERROR: Cannot define local label in data section. File \"%s\", on line %zu: %s\n", token->filename.c_str(), token->line, token->str.c_str());
+                    return {};
+                }
+            } else {
+                if (labelDefs.contains(token->str)) {
+                    printf("ERROR: Redefinition of label in file \"%s\", on line %zu: %s\n", token->filename.c_str(), token->line, token->str.c_str());
+                    return {};
+                }
+
+                if (programMode) {
+                    labelScope = token->str;
+                }
+    
+                labelDefs[token->str.substr(0, token->str.size() - 1)] = bytecode.size();
             }
 
-            labelDefs[token->str.substr(0, token->str.size() - 1)] = bytecode.size();
             token++;
             continue;
         }
@@ -334,6 +405,7 @@ std::vector<uint8_t> assemble(const std::string& filename) {
         if (programMode) {
             if (token->str == DATA_DIRECTIVE) {
                 programMode = false;
+                labelScope.clear();
             } else if (token->type == TokenType::INSTR) {
                 Token instrToken = *token;
                 uint8_t opcode = instrToken.instrData->opcode;
@@ -386,7 +458,7 @@ std::vector<uint8_t> assemble(const std::string& filename) {
                             return {};
                         }
                     } else if (token->type == TokenType::LABEL) {
-                        labelRefs[bytecode.size()] = {token->str, token->filename, token->line}; // replace with correct label addr after assembled
+                        labelRefs[bytecode.size()] = {token->str, labelScope, token->filename, token->line}; // replace with correct label addr after assembled
                         bytecode.push_back(0x00);
                         bytecode.push_back(0x00);
                     }
@@ -395,13 +467,14 @@ std::vector<uint8_t> assemble(const std::string& filename) {
                 if (pushedReg) {
                     bytecode.push_back(operand << 4);
                 }
-            } else if (!assemblePseudoOp(tokens, token, bytecode, labelRefs)) {
+            } else if (!assemblePseudoOp(tokens, token, bytecode, labelRefs, labelScope)) {
                 printf("ERROR: Unexpected stray token in file \"%s\", on line %zu: %s\n", token->filename.c_str(), token->line, token->str.c_str());
                 return {};
             }
         } else {
             if (token->str == PROGRAM_DIRECTIVE) {
                 programMode = true;
+                labelScope.clear();
             } else if (token->type != TokenType::VALUE) {
                 printf("ERROR: Unexpected label in data section in file \"%s\", on line %zu: %s\n", token->filename.c_str(), token->line, token->str.c_str());
                 return {};
@@ -416,6 +489,11 @@ std::vector<uint8_t> assemble(const std::string& filename) {
             }
         }
 
+        if (token->lastInFile) { // reset program mode per file
+            programMode = true;
+            labelScope.clear();
+        }
+
         token++;
     }
 
@@ -428,18 +506,30 @@ std::vector<uint8_t> assemble(const std::string& filename) {
         return {};
     }
 
-    for (auto label = labelRefs.begin(); label != labelRefs.end(); label++) {
-        uint16_t addr = label->first;
-        if (auto labelDef = labelDefs.find(label->second.label); labelDef != labelDefs.end()) {
-            if (label->second.high) {
-                bytecode[addr] = (labelDef->second >> 8) & 0xFF;
-                addr++;
+    for (auto labelRef = labelRefs.begin(); labelRef != labelRefs.end(); labelRef++) {
+        uint16_t refAddr = labelRef->first;
+        const std::unordered_map<std::string, uint16_t>* labelDefsPtr = &labelDefs;
+
+        if (labelRef->second.label[0] == '.') {
+            auto labelDefsIter = labelDefsLocal.find(labelRef->second.labelScope);
+            if (labelDefsIter != labelDefsLocal.end()) {
+                labelDefsPtr = &labelDefsIter->second;
+            } else {
+                printf("ERROR: Undefined label referenced in file \"%s\", on line %zu: %s\n", labelRef->second.filename.c_str(), labelRef->second.line, labelRef->second.label.c_str());
+                return {};
             }
-            if (label->second.low) {
-                bytecode[addr] = labelDef->second & 0xFF;
+        }
+
+        if (auto labelDef = labelDefsPtr->find(labelRef->second.label); labelDef != labelDefsPtr->end()) {
+            if (labelRef->second.high) {
+                bytecode[refAddr] = (labelDef->second >> 8) & 0xFF;
+                refAddr++;
+            }
+            if (labelRef->second.low) {
+                bytecode[refAddr] = labelDef->second & 0xFF;
             }
         } else {
-            printf("ERROR: Undefined label referenced in file \"%s\", on line %zu: %s\n", label->second.filename.c_str(), label->second.line, label->second.label.c_str());
+            printf("ERROR: Undefined label referenced in file \"%s\", on line %zu: %s\n", labelRef->second.filename.c_str(), labelRef->second.line, labelRef->second.label.c_str());
             return {};
         }
     }
