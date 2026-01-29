@@ -1,27 +1,20 @@
     ; --- standard library ---
 
 std_multiply:
-    push    rbnk                    ; retain reg
-    push    radr
     push    rc
-    imm     rbnk    0xFF            ; point in stack space
-    imm     rc      0x00
-    push    rc                      ; accumulator
-    isub    radr    rsp     0x01    ; point to accumulator
+    imm     rc      0x00            ; accumulator
 .loop:
-    lda     rc                      ; load accumulator and add
-    add     rc      rc      ra
-    sto     rc
+    add     rc      rc      ra      ; add to accumulator
     isub    rb      rb      0x01    ; dec counter
+    push    rc
     imm     rc      0x00
     cmp     rb      rc
+    pop     rc
     jmpz    .end                    ; end counter == 0
     jmp     .loop
 .end:
-    pop     ra                      ; return accumulator
+    cpy     ra      rc              ; return accumulator
     pop     rc
-    pop     radr
-    pop     rbnk                    ; restore reg
     ret
 
 

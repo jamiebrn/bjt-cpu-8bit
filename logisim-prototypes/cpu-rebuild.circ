@@ -628,20 +628,19 @@
       <a name="addrWidth" val="16"/>
       <a name="appearance" val="logisim_evolution"/>
       <a name="contents">addr/data: 16 8
-e0 0 5d 10 e0 10 f0 10
-20 ae ff a2 0 10 20 df
-a0 1 f2 42 20 11 20 d1
-10 1 a2 0 12 12 e1 0
-24 e0 0 12 20 22 2f 2e
-1 10 f0 10 20 a2 0 11
-0 cf f0 1 d1 10 1 12
-12 e1 0 3f e0 0 2f 22
-2f 1 10 f0 10 20 a2 0
-10 0 90 f2 60 12 20 c2
-20 1 12 2 e1 0 5a e0
-0 48 22 2f 1 af 4 a0
-12 a1 8 ea 0 29 c0 0
-2 e0 0 61
+e0 0 52 10 20 a2 0 42
+20 d1 10 1 10 20 a2 0
+12 12 22 e1 0 19 e0 0
+7 c0 20 0 22 1 10 f0
+10 20 a2 0 11 0 cf f0
+1 d1 10 1 12 12 e1 0
+34 e0 0 24 22 2f 1 10
+f0 10 20 a2 0 10 0 90
+f2 60 12 20 c2 20 1 12
+2 e1 0 4f e0 0 3d 22
+2f 1 af 4 a0 12 a1 8
+ea 0 3 0 ea 0 1e c0
+0 2 e0 0 5c
 </a>
     </comp>
     <comp lib="4" loc="(2500,870)" name="RAM">
