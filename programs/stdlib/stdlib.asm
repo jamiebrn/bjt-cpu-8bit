@@ -53,22 +53,55 @@ std_memcpy:                         ; memcpy of ra bytes, from addr to rb
     pop     radr
     ret
 
+
 std_memcmp:                         ; memcmp of ra bytes, starting at addr and rb
+    push    rbnk
     push    radr
     push    rc
-    imm     rc      0x00            ; counter
-.loop:
-    push    ra
-    ldrl    ra      radr    rc      ; load at radr + counter
-    push    ra
-    ldrl    ra      rb      rc      ; load at rb + counter
+
+    imm     rbnk    0xFF            ; point in stack
+    imm     rc      0x00
     
-    pop     ra
-    iadd    rc      rc      0x01
+    push    rc                      ; counter (rbp + 2)
+    push    ra                      ; byte count (rbp + 3)
+
+.loop:
+    ldrl    ra      radr    rc      ; load at radr + counter
+    
+    ldrl    rc      rb      rc      ; load at rb + counter
+
     cmp     ra      rc
-    jmpz    .end
+    jmpz    .equal
+
+    imm     ra      0x00            ; not equal, return 0
+    jmp     .end
+
+.equal:
+    imm     ra      2
+    ldrl    ra      rbp     ra      ; load counter from stack
+    
+    iadd    ra      ra      0x01
+    
+    imm     rc      3
+    ldrl    rc      rbp     rc      ; load byte count from stack
+
+    cmp     rc      ra
+    jmpz    .allequal               ; if counter == byte count
+
+    imm     rc      2
+    strla   rbp     rc              ; store counter
+
     jmp     .loop
+
+.allequal:
+    imm     ra      0x01            ; return 1
+
 .end:
     pop     rc
+    pop     rc                      ; clean up
+    
+    pop     rc
     pop     radr
+    pop     rbnk                    ; restore
+
     ret
