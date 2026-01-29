@@ -290,11 +290,9 @@ bool tokeniseFile(const std::string& filename, std::unordered_set<std::string>& 
                     parsingInclude = true;
                 } else if (!parsingDefine && tokenBuffer == DEFINE_DIRECTIVE) {
                     parsingDefine = true;
-                } else {
-                    if (!createTokenWithContext(tokenBuffer, tokens, includedFiles, defines, filename, line, parsingInclude,
-                        parsingDefine, defineName)) {
-                        return {};
-                    }
+                } else if (!createTokenWithContext(tokenBuffer, tokens, includedFiles, defines, filename, line, parsingInclude,
+                    parsingDefine, defineName)) {
+                    return {};
                 }
 
                 tokenBuffer.clear();
@@ -313,11 +311,9 @@ bool tokeniseFile(const std::string& filename, std::unordered_set<std::string>& 
         tokenBuffer += c;
     }
 
-    if (!tokenBuffer.empty()) {
-        if (!createTokenWithContext(tokenBuffer, tokens, includedFiles, defines, filename, line, parsingInclude,
-            parsingDefine, defineName)) {
-            return {};
-        }
+    if (!tokenBuffer.empty() && !createTokenWithContext(tokenBuffer, tokens, includedFiles, defines, filename, line, parsingInclude,
+        parsingDefine, defineName)) {
+        return {};
     }
 
     tokens[tokens.size() - 1].lastInFile = true;
