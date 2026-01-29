@@ -181,6 +181,69 @@ Token createToken(const std::string& str, size_t line) {
 }
 
 bool tokeniseFile(const std::string& filename, std::unordered_set<std::string>& includedFiles, std::vector<Token>& tokens,
+    std::unordered_map<std::string, Token>& defines);
+
+bool createTokenWithContext(const std::string& tokenBuffer, std::vector<Token>& tokens, std::unordered_set<std::string>& includedFiles,
+    std::unordered_map<std::string, Token>& defines, const std::string& filename, size_t line,
+    bool& parsingInclude, bool& parsingDefine, std::string& defineName) {
+    
+    Token token = createToken(tokenBuffer, line);
+    token.filename = filename;
+
+    if (parsingInclude) {
+        if (token.type == TokenType::STRING_LIT) {
+            if (!tokeniseFile(token.str, includedFiles, tokens, defines)) {
+                tokens.clear();
+                return false;
+            }
+        } else {
+            printf("ERROR: Expected file name after include in file \"%s\", line %zu\n", filename.c_str(), line);
+            tokens.clear();
+            return false;
+        }
+
+        parsingInclude = false;
+    } else if (parsingDefine) {
+        if (defineName.empty()) {
+            if (token.type == TokenType::LABEL) {
+                if (defines.contains(token.str)) {
+                    printf("ERROR: Found repeated define \"%s\" in file \"%s\", line %zu\n", token.str.c_str(), filename.c_str(), line);
+                    tokens.clear();
+                    return false;
+                }
+
+                defineName = token.str;
+            } else {
+                printf("ERROR: Expected name after define in file \"%s\", line %zu\n", filename.c_str(), line);
+                tokens.clear();
+                return false;
+            }
+        } else {
+            if (token.type == TokenType::VALUE) {
+                defines[defineName] = token;
+            } else {
+                printf("ERROR: Expected value for define \"%s\" in file \"%s\", line %zu\n", defineName.c_str(), filename.c_str(), line);
+                tokens.clear();
+                return false;
+            }
+
+            parsingDefine = false;
+            defineName.clear();
+        }
+    } else {
+        if (token.type == TokenType::LABEL && defines.contains(token.str)) {
+            token = defines.at(token.str);
+            token.filename = filename;
+            token.line = line;
+        }
+
+        tokens.push_back(token);
+    }
+
+    return true;
+}
+
+bool tokeniseFile(const std::string& filename, std::unordered_set<std::string>& includedFiles, std::vector<Token>& tokens,
     std::unordered_map<std::string, Token>& defines) {
     if (includedFiles.contains(filename)) {
         return true;
@@ -228,57 +291,9 @@ bool tokeniseFile(const std::string& filename, std::unordered_set<std::string>& 
                 } else if (!parsingDefine && tokenBuffer == DEFINE_DIRECTIVE) {
                     parsingDefine = true;
                 } else {
-                    Token token = createToken(tokenBuffer, line);
-                    token.filename = filename;
-
-                    if (parsingInclude) {
-                        if (token.type == TokenType::STRING_LIT) {
-                            if (!tokeniseFile(token.str, includedFiles, tokens, defines)) {
-                                tokens.clear();
-                                return false;
-                            }
-                        } else {
-                            printf("ERROR: Expected file name after include in file \"%s\", line %zu\n", filename.c_str(), line);
-                            tokens.clear();
-                            return false;
-                        }
-
-                        parsingInclude = false;
-                    } else if (parsingDefine) {
-                        if (defineName.empty()) {
-                            if (token.type == TokenType::LABEL) {
-                                if (defines.contains(token.str)) {
-                                    printf("ERROR: Found repeated define \"%s\" in file \"%s\", line %zu\n", token.str.c_str(), filename.c_str(), line);
-                                    tokens.clear();
-                                    return false;
-                                }
-
-                                defineName = token.str;
-                            } else {
-                                printf("ERROR: Expected name after define in file \"%s\", line %zu\n", filename.c_str(), line);
-                                tokens.clear();
-                                return false;
-                            }
-                        } else {
-                            if (token.type == TokenType::VALUE) {
-                                defines[defineName] = token;
-                            } else {
-                                printf("ERROR: Expected value for define \"%s\" in file \"%s\", line %zu\n", defineName.c_str(), filename.c_str(), line);
-                                tokens.clear();
-                                return false;
-                            }
-
-                            parsingDefine = false;
-                            defineName.clear();
-                        }
-                    } else {
-                        if (token.type == TokenType::LABEL && defines.contains(token.str)) {
-                            token = defines.at(token.str);
-                            token.filename = filename;
-                            token.line = line;
-                        }
-
-                        tokens.push_back(token);
+                    if (!createTokenWithContext(tokenBuffer, tokens, includedFiles, defines, filename, line, parsingInclude,
+                        parsingDefine, defineName)) {
+                        return {};
                     }
                 }
 
@@ -296,6 +311,13 @@ bool tokeniseFile(const std::string& filename, std::unordered_set<std::string>& 
         }
 
         tokenBuffer += c;
+    }
+
+    if (!tokenBuffer.empty()) {
+        if (!createTokenWithContext(tokenBuffer, tokens, includedFiles, defines, filename, line, parsingInclude,
+            parsingDefine, defineName)) {
+            return {};
+        }
     }
 
     tokens[tokens.size() - 1].lastInFile = true;
