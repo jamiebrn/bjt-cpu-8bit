@@ -2,7 +2,17 @@
 
 main:
     imm     ra      0x03
+    imm     rc      0x08
 .loop:
-    imm     rb      0x01
-    call    std_shlr
+    call    std_shr
+    sto     ra
+    iadd    rb      rb      0x01
+    iadd    radr    radr    0x01
+
+    cmp     rb      rc
+    jmpz    .resetcount
+    jmp     .loop
+
+.resetcount:
+    imm     rb      0x00
     jmp     .loop

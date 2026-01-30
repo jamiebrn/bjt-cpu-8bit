@@ -79,7 +79,9 @@ std::unordered_map<std::string, uint8_t> registerNames = {
     {"rsp",     0x0A},
     {"rbp",     0x0B},
     {"rbnk",    0x0E},
-    {"radr",    0x0F}
+    {"radr",    0x0F},
+
+    {"rdis",    0x09},
 };
 
 char charLower(char c) {

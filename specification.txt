@@ -96,3 +96,15 @@ Calling Convention:
  - Pass parameters in ra, rb, rc, then push to stack (caller must pop)
  - All non-parameter registers (e.g. rb, rc for a 1 parameter function) must be retained on return
  - BANK and ADDR should be retained unless function behaviour explicitly mutates
+
+
+ --- Extensions ---
+
+Video:
+ - 64x64 4 bit greyscale
+ - Write only via virtual register (0x9 / rdis)
+ - Protocol:
+   - 0b00000001 - clear
+   - 0b01XXXXXX - set cursor X
+   - 0b10YYYYYY - set cursor Y
+   - 0b1100XXXX - write colour XXXX
