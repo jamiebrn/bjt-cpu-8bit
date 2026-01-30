@@ -18,6 +18,55 @@ std_multiply:
     ret
 
 
+std_shl:                            ; left shift of ra by rb bits
+    push    rc
+    imm     rc      0x00
+.loop:
+    add     ra      ra      ra
+    isub    rb      rb      0x01
+    cmp     rb      rc
+    jmpz    .end
+    jmp     .loop
+.end:
+    pop     rc
+    ret
+
+
+std_shlr:                           ; left rotate of ra by rb bits
+    push    rc
+    imm     rc      0x00
+
+.loop:
+    add     ra      ra      ra
+    jmpc    .addbit
+    jmp     .subcounter
+
+.addbit:
+    iadd    ra      ra      0x01    ; add rotated bit
+
+.subcounter:
+    isub    rb      rb      0x01
+    cmp     rb      rc
+    jmpz    .end
+    jmp     .loop
+
+.end:
+    pop     rc
+    ret
+
+
+std_shr:                            ; right shift of ra by rb bits
+    push    rc
+    imm     rc      0x08
+    sub     rc      rc      rb
+    cpy     rb      rc
+
+    call    std_shlr                ; rotate left by 8 - rb bits
+    
+    pop     rc
+    ret
+
+
 std_memset:                         ; memset of ra, rb bytes from addr
     push    radr
     push    rc
