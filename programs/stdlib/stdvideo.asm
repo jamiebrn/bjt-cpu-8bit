@@ -1,13 +1,15 @@
-#include "stdlib/stdlib.asm"
+    ; --- video / display extension ---
 
-main:
-    imm     ra      0x00
-    imm     rb      0x00
-.loop:
-    iadd    ra      ra      0x01
-    iadd    rb      rb      0x01
+stdv_draw_pixel:                    ; (x, y, colour)
+    push    rc
 
-    imm     rdis    0x01            ; clear display
+    imm     rc      0x3F
+
+    nand    ra      ra      rc
+    nand    ra      ra      ra      ; bitwise and x cursor
+    
+    nand    rb      rb      rc
+    nand    rb      rb      rb      ; bitwise and y cursor
 
     imm     rc      0x40            ; cursor x opcode
     
@@ -18,7 +20,7 @@ main:
     pop     ra
 
     cpy     rdis    rc              ; set cursor x to ra
-    
+
     imm     rc      0x80            ; cursor y opcode
     
     push    rb
@@ -29,6 +31,7 @@ main:
 
     cpy     rdis    rc              ; set cursor y to rb
 
-    imm     rdis    0xCF            ; set pixel white
+    pop     rc
+    cpy     rdis    rc              ; set pixel colour
 
-    jmp     .loop
+    ret
