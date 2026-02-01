@@ -55,44 +55,44 @@ main:
     push    ra                      ; ball y vel (rbp + 3)
 
 .loop:
-    imm     ra      0
+    imm     ra      0x00
     ldrl    ra      rbp     ra      ; load ball x pos
 
-    imm     rb      2
+    imm     rb      0x02
     ldrl    rb      rbp     rb      ; load ball x vel
 
     call    ball_update             ; update x
 
-    imm     rc      0
+    imm     rc      0x00
     strla   rbp     rc              ; store updated ball x pos
 
     cpy     ra      rb
-    imm     rc      2
+    imm     rc      0x02
     strla   rbp     rc              ; store updated ball x vel
     
     
-    imm     ra      1
+    imm     ra      0x01
     ldrl    ra      rbp     ra      ; load ball y pos
 
-    imm     rb      3
+    imm     rb      0x03
     ldrl    rb      rbp     rb      ; load ball y vel
 
     call    ball_update             ; update y
 
-    imm     rc      1
+    imm     rc      0x01
     strla   rbp     rc              ; store updated ball y pos
 
     cpy     ra      rb
-    imm     rc      3
+    imm     rc      0x03
     strla   rbp     rc              ; store updated ball y vel
 
 
     imm     rdis    0x01            ; clear display
 
-    imm     ra      0
+    imm     ra      0x00
     ldrl    ra      rbp     ra      ; load ball x pos
 
-    imm     rb      1
+    imm     rb      0x01
     ldrl    rb      rbp     rb      ; load ball y pos
 
     imm     rc      0xFF            ; set colour white

@@ -3,3 +3,5 @@
 *.bin
 *.exe
 programs/assembler
+emulator/build/
+emulator/.cache/

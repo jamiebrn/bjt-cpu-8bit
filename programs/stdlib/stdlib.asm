@@ -133,11 +133,8 @@ std_memcpy:                         ; memcpy of ra bytes, from addr to rb
 
 
 std_memcmp:                         ; memcmp of ra bytes, starting at addr and rb
-    push    rbnk
-    push    radr
     push    rc
 
-    imm     rbnk    0xFF            ; point in stack
     imm     rc      0x00
     
     push    rc                      ; counter (rbp + 2)
@@ -155,6 +152,9 @@ std_memcmp:                         ; memcmp of ra bytes, starting at addr and r
     jmp     .end
 
 .equal:
+    push    rbnk
+    imm     rbnk    0xFF            ; point in stack
+
     imm     ra      2
     ldrl    ra      rbp     ra      ; load counter from stack
     
@@ -169,17 +169,19 @@ std_memcmp:                         ; memcmp of ra bytes, starting at addr and r
     imm     rc      2
     strla   rbp     rc              ; store counter
 
+    pop     rbnk
+
     jmp     .loop
 
 .allequal:
     imm     ra      0x01            ; return 1
 
+    pop     rbnk
+
 .end:
     pop     rc
     pop     rc                      ; clean up
     
-    pop     rc
-    pop     radr
-    pop     rbnk                    ; restore
+    pop     rc                      ; restore
 
     ret
