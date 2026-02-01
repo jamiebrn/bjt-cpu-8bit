@@ -41,3 +41,14 @@
 #define OP_JMPC     0xE4
 #define OP_JMPO     0xE8
 #define OP_CALL     0xEA
+
+// Mask
+#define FLAG_ZBIT   0
+#define FLAG_CBIT   1
+#define FLAG_OBIT   2
+#define FLAG_NBIT   3
+
+#define FLAG_ZMASK(x)   (x & (0x1 << FLAG_ZBIT))
+#define FLAG_CMASK(x)   (x & (0x1 << FLAG_CBIT))
+#define FLAG_OMASK(x)   (x & (0x1 << FLAG_OBIT))
+#define FLAG_NMASK(x)   (x & (0x1 << FLAG_NBIT))

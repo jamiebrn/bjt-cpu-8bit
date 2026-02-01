@@ -23,6 +23,13 @@ private:
 
     bool pushStep(uint8_t value);
     bool popStep(uint8_t reg);
+    
+    void endCycle();
+
+    void updateFlags(uint8_t lastValue, uint8_t value, bool add);
+
+    void writeRAM(uint8_t bank, uint8_t addr, uint8_t value);
+    uint8_t readRAM(uint8_t bank, uint8_t addr);
 
 private:
     uint16_t pcReg;

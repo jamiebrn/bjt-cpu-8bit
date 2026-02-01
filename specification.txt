@@ -1,4 +1,5 @@
 --- 8 bit discrete BJT processor ---
+--- jamiebrn 2026
 
 Harvard architecture
 8 bit word size
