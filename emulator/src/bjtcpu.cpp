@@ -195,11 +195,60 @@ uint8_t bjtcpu::getInstrLen(uint8_t opcode) {
 }
 
 bool bjtcpu::callFuncStep(bool funcInAddr) {
+    switch (instrStageIdx) {
+        case 0:
+            writeRAM(0xFF, regFile[REG_SP], regFile[REG_BP]);
+            return false;
+        case 1:
+            regFile[REG_SP]++;
+            return false;
+        case 2:
+            writeRAM(0xFF, regFile[REG_SP], pcReg & 0xFF);
+            return false;
+        case 3:
+            regFile[REG_SP]++;
+            return false;
+        case 4:
+            writeRAM(0xFF, regFile[REG_SP], (pcReg >> 8) & 0xFF);
+            return false;
+        case 5:
+            regFile[REG_SP]++;
+            pcReg = (instrReg[1] << 8) | instrReg[2];
+            return false;
+        case 6:
+            regFile[REG_BP] = regFile[REG_SP];
+            break;
+    }
 
+    return true;
 }
 
 bool bjtcpu::retFuncStep() {
-
+    switch (instrStageIdx) {
+        case 0:
+            regFile[REG_SP] = regFile[REG_BP] - 1;
+            return false;
+        case 1:
+            pcReg = (pcReg & 0xFF) | (readRAM(0xFF, regFile[REG_SP]) << 8);
+            return false;
+        case 2:
+            regFile[REG_SP]--;
+            return false;
+        case 3:
+            pcReg = (pcReg & 0xFF00) | readRAM(0xFF, regFile[REG_SP]);
+            return false;
+        case 4:
+            writeRAM(0xFF, regFile[REG_SP], (pcReg >> 8) & 0xFF);
+            return false;
+        case 5:
+            regFile[REG_SP]--;
+            return false;
+        case 6:
+            regFile[REG_BP] = readRAM(0xFF, regFile[REG_SP]);
+            break;
+    }
+    
+    return true;
 }
 
 bool bjtcpu::pushStep(uint8_t value) {
