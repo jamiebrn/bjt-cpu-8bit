@@ -238,12 +238,9 @@ bool bjtcpu::retFuncStep() {
             pcReg = (pcReg & 0xFF00) | readRAM(0xFF, regFile[REG_SP]);
             return false;
         case 4:
-            writeRAM(0xFF, regFile[REG_SP], (pcReg >> 8) & 0xFF);
-            return false;
-        case 5:
             regFile[REG_SP]--;
             return false;
-        case 6:
+        case 5:
             regFile[REG_BP] = readRAM(0xFF, regFile[REG_SP]);
             break;
     }
@@ -305,4 +302,12 @@ void bjtcpu::writeRAM(uint8_t bank, uint8_t addr, uint8_t value) {
 
 uint8_t bjtcpu::readRAM(uint8_t bank, uint8_t addr) {
     return ram[bank * 0x100 + addr];
+}
+
+uint8_t bjtcpu::readROM(uint8_t bank, uint8_t addr) {
+    return rom[bank * 0x100 + addr];
+}
+
+uint8_t bjtcpu::getRegValue(uint8_t reg) {
+    return regFile[reg];
 }

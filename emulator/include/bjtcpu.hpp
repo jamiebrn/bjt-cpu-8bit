@@ -16,6 +16,11 @@ public:
 
     void step();
 
+    uint8_t readRAM(uint8_t bank, uint8_t addr);
+    uint8_t readROM(uint8_t bank, uint8_t addr);
+
+    uint8_t getRegValue(uint8_t reg);
+
 private:
     uint8_t getInstrLen(uint8_t opcode);
 
@@ -30,7 +35,6 @@ private:
     void updateFlags(uint8_t lastValue, uint8_t value, bool add);
 
     void writeRAM(uint8_t bank, uint8_t addr, uint8_t value);
-    uint8_t readRAM(uint8_t bank, uint8_t addr);
 
 private:
     uint16_t pcReg;
