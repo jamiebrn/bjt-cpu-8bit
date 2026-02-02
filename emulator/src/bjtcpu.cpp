@@ -72,23 +72,29 @@ void bjtcpu::step() {
             break;
         }
         case 0x2: {
-            cycleFinished = popStep((opcode >> 4) & 0xF);
+            cycleFinished = popStep(destReg);
             break;
         }
         case 0x3: {
-            regFile[(opcode >> 4) & 0xF] = rom[regFile[REG_BNK] * 0x100 + regFile[REG_ADDR]];
+            regFile[destReg] = rom[regFile[REG_BNK] * 0x100 + regFile[REG_ADDR]];
             break;
         }
         case 0x4:
-        case 0x5: {
-            uint8_t lastValue = regFile[(opcode >> 4) & 0xF];
-            regFile[(opcode >> 4) & 0xF] = regFile[(instrReg[1] >> 4) & 0xF] + regFile[instrReg[1] & 0xF];
+        case 0x5:
+        case 0xC: {
+            uint8_t lastValue = regFile[destReg];
 
-            if ((opcode & 0xF0) == OP_ADDC && FLAG_CMASK(flagsReg)) {
-                regFile[(opcode >> 4) & 0xF]++;
+            if (opcode == OP_IADD) {
+                regFile[destReg] = regFile[(instrReg[1] >> 4) & 0xF] + instrReg[2];
+            } else {
+                regFile[destReg] = regFile[(instrReg[1] >> 4) & 0xF] + regFile[instrReg[1] & 0xF];
             }
 
-            updateFlags(lastValue, regFile[(opcode >> 4) & 0xF], true);
+            if ((opcode & 0xF0) == OP_ADDC && FLAG_CMASK(flagsReg)) {
+                regFile[destReg]++;
+            }
+
+            updateFlags(lastValue, regFile[destReg], true);
 
             break;
         }
@@ -98,29 +104,57 @@ void bjtcpu::step() {
             break;
         }
         case 0x7:
-        case 0x8: {
-            uint8_t lastValue = regFile[(opcode >> 4) & 0xF];
-            regFile[(opcode >> 4) & 0xF] = regFile[(instrReg[1] >> 4) & 0xF] - regFile[instrReg[1] & 0xF];
+        case 0x8:
+        case 0xD: {
+            uint8_t lastValue = regFile[destReg];
             
-            if ((opcode & 0xF0) == OP_SUBC && FLAG_CMASK(flagsReg)) {
-                regFile[(opcode >> 4) & 0xF]++;
+            if (opcode == OP_ISUB) {
+                regFile[destReg] = regFile[(instrReg[1] >> 4) & 0xF] - instrReg[2];
+            } else {
+                regFile[destReg] = regFile[(instrReg[1] >> 4) & 0xF] - regFile[instrReg[1] & 0xF];
             }
             
-            updateFlags(lastValue, regFile[(opcode >> 4) & 0xF], true);
+            if ((opcode & 0xF0) == OP_SUBC && FLAG_CMASK(flagsReg)) {
+                regFile[destReg]++;
+            }
+            
+            updateFlags(lastValue, regFile[destReg], true);
             
             break;
         }
         case 0x9: {
             uint8_t addr = regFile[(instrReg[1] >> 4) & 0xF] + regFile[instrReg[1] & 0xF];
-            regFile[(opcode >> 4) & 0xF] = readRAM(regFile[REG_BNK], addr);
+            regFile[destReg] = readRAM(regFile[REG_BNK], addr);
             break;
         }
-        case 0xA:
-        case 0xB:
-        case 0xC:
-        case 0xD:
-        case 0xE:
-        case 0xF:
+        case 0xA: {
+            regFile[destReg] = instrReg[1];
+            break;
+        }
+        case 0xB: {
+            regFile[destReg] = ~(regFile[(instrReg[1] >> 4) & 0xF] & regFile[instrReg[1] & 0xF]);
+            break;
+        }
+        case 0xE: {
+            if (opcode == OP_CALL) {
+                cycleFinished = callFuncStep(true);
+                break;
+            }
+
+            if (opcode == OP_JMP ||
+                opcode == OP_JMPZ && FLAG_ZMASK(flagsReg) ||
+                opcode == OP_JMPN && FLAG_NMASK(flagsReg) ||
+                opcode == OP_JMPC && FLAG_CMASK(flagsReg) ||
+                opcode == OP_JMPO && FLAG_OMASK(flagsReg)) {
+                pcReg = (instrReg[1] << 8) | instrReg[2];
+            }
+            
+            break;
+        }
+        case 0xF: {
+            regFile[destReg] = readRAM(regFile[REG_BNK], regFile[REG_ADDR]);
+            break;
+        }
     }
 
     instrStageIdx++;
