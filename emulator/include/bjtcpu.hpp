@@ -20,6 +20,8 @@ public:
     uint8_t readROM(uint8_t bank, uint8_t addr);
 
     uint8_t getRegValue(uint8_t reg);
+    uint16_t getPCValue();
+    uint8_t getIRValue(uint8_t idx);
 
 private:
     uint8_t getInstrLen(uint8_t opcode);

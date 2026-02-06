@@ -311,3 +311,11 @@ uint8_t bjtcpu::readROM(uint8_t bank, uint8_t addr) {
 uint8_t bjtcpu::getRegValue(uint8_t reg) {
     return regFile[reg];
 }
+
+uint16_t bjtcpu::getPCValue() {
+    return pcReg;
+}
+
+uint8_t bjtcpu::getIRValue(uint8_t idx) {
+    return instrReg[idx];
+}
