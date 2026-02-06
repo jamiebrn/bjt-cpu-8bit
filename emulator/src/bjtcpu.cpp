@@ -41,6 +41,8 @@ void bjtcpu::step() {
     uint8_t opcode = instrReg[0];
     uint8_t destReg = instrReg[0] & 0xF;
 
+    uint8_t displayReg = regFile[REG_DIS];
+
     bool cycleFinished = true;
 
     switch ((opcode >> 4) & 0xF) {
@@ -156,6 +158,14 @@ void bjtcpu::step() {
             break;
         }
     }
+
+    printf("%d     %d\n", displayReg, regFile[REG_DIS]);
+    #if BJTCPU_EXT_DISPLAY
+    if (displayReg != regFile[REG_DIS]) {
+        display.sendSignal(regFile[REG_DIS]);
+        printf("%d\n", regFile[REG_DIS]);
+    }
+    #endif
 
     instrStageIdx++;
 
@@ -318,4 +328,46 @@ uint16_t bjtcpu::getPCValue() {
 
 uint8_t bjtcpu::getIRValue(uint8_t idx) {
     return instrReg[idx];
+}
+
+#if BJTCPU_EXT_DISPLAY
+bjtcpu_display& bjtcpu::getDisplay() {
+    return display;
+}
+#endif
+
+bjtcpu_display::bjtcpu_display() {
+    clear();
+    cursorX = 0;
+    cursorY = 0;
+}
+
+void bjtcpu_display::sendSignal(uint8_t value) {
+    uint8_t opcode = value & 0xC0;
+    
+    if (value == 1) {
+        clear();
+    } else if (opcode == 0x40) {
+        cursorX = value & 0x3F;
+    } else if (opcode == 0x80) {
+        cursorY = value & 0x3F;
+    } else if (opcode == 0xC0) {
+        writePixel(value & 0xF);
+    }
+}
+
+uint8_t* bjtcpu_display::getFramebuffer() {
+    return framebuffer.data();
+}
+
+void bjtcpu_display::clear() {
+    framebuffer.fill(0);
+}
+
+void bjtcpu_display::writePixel(uint8_t colour) {
+    colour = colour / 16 * 255;
+    framebuffer[cursorX + cursorY * 64 * 4] = colour;
+    framebuffer[cursorX + cursorY * 64 * 4 + 1] = colour;
+    framebuffer[cursorX + cursorY * 64 * 4 + 2] = colour;
+    printf("pixel at %d, %d\n", cursorX, cursorY);
 }

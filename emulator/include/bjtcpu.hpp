@@ -3,8 +3,32 @@
 #include <cstdint>
 #include <array>
 #include <cstring>
+#include <stdio.h>
 
 #include "opcodes.hpp"
+
+#define BJTCPU_EXT_DISPLAY true
+
+class bjtcpu_display {
+public:
+    bjtcpu_display();
+
+    void sendSignal(uint8_t value);
+
+    uint8_t* getFramebuffer();
+
+private:
+    void clear();
+
+    void writePixel(uint8_t colour);
+
+private:
+    std::array<uint8_t, 64 * 64 * 3> framebuffer;
+
+    uint8_t cursorX;
+    uint8_t cursorY;
+
+};
 
 class bjtcpu {
 public:
@@ -22,6 +46,10 @@ public:
     uint8_t getRegValue(uint8_t reg);
     uint16_t getPCValue();
     uint8_t getIRValue(uint8_t idx);
+
+    #if BJTCPU_EXT_DISPLAY
+    bjtcpu_display& getDisplay();
+    #endif
 
 private:
     uint8_t getInstrLen(uint8_t opcode);
@@ -68,5 +96,9 @@ private:
     std::array<uint8_t, 0x10000> ram;
 
     bool stopped;
+
+    #if BJTCPU_EXT_DISPLAY
+    bjtcpu_display display;
+    #endif
 
 };

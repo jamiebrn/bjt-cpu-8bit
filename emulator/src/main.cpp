@@ -55,7 +55,7 @@ int main(int argc, char** argv) {
     auto last = now;
 
     float stepTime = 0;
-    constexpr int CLOCK_SPEED = 10;
+    constexpr int CLOCK_SPEED = 100;
     constexpr float MAX_STEP_TIME = 1.0f / CLOCK_SPEED;
 
     bool running = true;
@@ -95,6 +95,16 @@ int main(int argc, char** argv) {
         drawText(renderer, font, std::format("RBNK {:x}", cpu.getRegValue(REG_BNK)), 10, 340);
         drawText(renderer, font, std::format("RADDR {:x}", cpu.getRegValue(REG_ADDR)), 10, 370);
 
+        #ifdef BJTCPU_EXT_DISPLAY
+        {
+            SDL_Surface* surface = SDL_CreateRGBSurfaceWithFormatFrom(cpu.getDisplay().getFramebuffer(), 64, 64, 1, 64 * 3, SDL_PIXELFORMAT_RGB888);
+            SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+            SDL_Rect rect{300, 20, 320, 320};
+            SDL_RenderCopy(renderer, texture, NULL, &rect);
+            SDL_DestroyTexture(texture);
+            SDL_FreeSurface(surface);
+        }
+        #endif
 
         SDL_RenderPresent(renderer);
     }
