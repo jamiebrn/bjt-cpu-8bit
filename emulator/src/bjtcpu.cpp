@@ -366,8 +366,8 @@ void bjtcpu_display::clear() {
 
 void bjtcpu_display::writePixel(uint8_t colour) {
     colour = colour / 16 * 255;
-    framebuffer[cursorX + cursorY * 64 * 4] = colour;
-    framebuffer[cursorX + cursorY * 64 * 4 + 1] = colour;
-    framebuffer[cursorX + cursorY * 64 * 4 + 2] = colour;
+    framebuffer[cursorX + cursorY * 64 * 3] = colour;
+    framebuffer[cursorX + cursorY * 64 * 3 + 1] = colour;
+    framebuffer[cursorX + cursorY * 64 * 3 + 2] = colour;
     printf("pixel at %d, %d\n", cursorX, cursorY);
 }

@@ -50,6 +50,10 @@ int main(int argc, char** argv) {
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, 0);
 
     TTF_Font* font = TTF_OpenFont("Rubik-Regular.ttf", 24);
+    if (!font) {
+        printf("ERROR: Could not load font\n");
+        return 1;
+    }
 
     auto now = std::chrono::high_resolution_clock::now();
     auto last = now;

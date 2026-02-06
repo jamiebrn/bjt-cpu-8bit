@@ -88,7 +88,7 @@ private:
         true, true          // rbnk, radr
     };
     
-    std::array<uint8_t, 0xF> regFile;
+    std::array<uint8_t, 0x10> regFile;
 
     uint8_t flagsReg;
 
