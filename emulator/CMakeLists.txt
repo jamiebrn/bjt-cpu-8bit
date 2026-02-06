@@ -26,6 +26,7 @@ FetchContent_MakeAvailable(SDL2_ttf)
 
 include_directories(include/)
 include_directories(${SDL2_SOURCE_DIR}/include)
+# include_directories(${_SOURCE_DIR}/include)
 file(GLOB_RECURSE SRC_FILES src/*.cpp)
 
 add_executable(bjtcpu-emu ${SRC_FILES})
