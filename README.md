@@ -8,6 +8,8 @@ The [ISA](specification.txt) is fully working and implemented in [logisim](logis
 
 I have also written an [assembler](assembler/assembler.cpp), and am working on the [emulator](emulator/) (functional but some graphics issues).
 
+A barebones [standard library](programs/stdlib/) is also implemented.
+
 ## Physical build
 I have [prototyped the ALU on breadboards](images/8bit-alu-labelled.png), and have started [working on PCB components](images/pcb-8bit-reg-v3-refined.png).
 
